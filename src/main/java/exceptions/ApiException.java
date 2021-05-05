@@ -1,5 +1,6 @@
 package exceptions;
 
+
 public class ApiException extends RuntimeException {
     private final int statusCode;
 

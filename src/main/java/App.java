@@ -4,7 +4,6 @@ import com.google.gson.Gson;
 import dao.Sql2oItemsDao;
 import dao.Sql2oStoreDao;
 import exceptions.ApiException;
-
 import models.Items;
 import models.Store;
 import org.sql2o.Connection;
@@ -135,7 +134,6 @@ public class App {
             }
         });
 
-
         exception(ApiException.class, (exception, req, res) -> {
             ApiException err = exception;
             Map<String, Object> jsonMap = new HashMap<>();
@@ -145,9 +143,6 @@ public class App {
             res.status(err.getStatusCode());
             res.body(gson.toJson(jsonMap));
         });
-        after((req, res) ->{
-            res.type("application/json");
-        });
-
     }
 }
+

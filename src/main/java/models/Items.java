@@ -6,6 +6,7 @@ public class Items {
     private int id;
     private String name;
     private int price;
+
     private int storeId;
 
     public Items(String name, int price, int storeId) {
@@ -38,6 +39,7 @@ public class Items {
         this.price = price;
     }
 
+
     public int getStoreId() {
         return storeId;
     }
@@ -59,7 +61,9 @@ public class Items {
 
     @Override
     public int hashCode() {
+
         return Objects.hash(name,id,storeId);
+
     }
 }
 
