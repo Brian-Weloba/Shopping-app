@@ -18,13 +18,19 @@ public class Sql2oItemsDao implements ItemsDao {
 
     @Override
     public void add(Items item) {
-        String sql = "INSERT INTO items (name, price) VALUES (:name, :price)";
+        String sql = "INSERT INTO items (name, price, storeid) VALUES (:name, :price, :storeId)";
         try (Connection con = sql2o.open()) {
             int id = (int) con.createQuery(sql, true)
                     .bind(item)
                     .executeUpdate()
                     .getKey();
             item.setId(id);
+
+            String joinQuery = "INSERT INTO stores_items (storeid, itemid) VALUES (:storeId, :itemId)";
+                con.createQuery(joinQuery)
+                        .addParameter("storeId", item.getStoreId())
+                        .addParameter("itemId", item.getId())
+                        .executeUpdate();
         } catch (Sql2oException ex) {
             System.out.println(ex);
         }
@@ -76,15 +82,6 @@ public class Sql2oItemsDao implements ItemsDao {
     }
 
     @Override
-    public Items findById(int id) {
-        try(Connection con = sql2o.open()){
-            return con.createQuery("SELECT * FROM items WHERE id =:id")
-                    .addParameter("id",id)
-                    .executeAndFetchFirst(Items.class);
-        }
-    }
-
-    @Override
     public void deleteById(int id) {
         String sql = "DELETE from items WHERE id = :id";
         String deleteJoin = "DELETE from stores_items WHERE itemid = :itemId";
@@ -100,6 +97,22 @@ public class Sql2oItemsDao implements ItemsDao {
         }
     }
 
+    @Override
+    public Items findById(int id) {
+        try(Connection con = sql2o.open()){
+            return con.createQuery("SELECT * FROM items WHERE id=:id")
+                    .addParameter("id", id)
+                    .executeAndFetchFirst(Items.class);
+        }
+    }
+
+    public Items findByName(String name) {
+        try(Connection con = sql2o.open()){
+            return con.createQuery("SELECT * FROM items WHERE name=:name")
+                    .addParameter("name", name)
+                    .executeAndFetchFirst(Items.class);
+        }
+    }
     @Override
     public void clearAll() {
         String sql = "DELETE from items";

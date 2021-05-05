@@ -1,4 +1,6 @@
+
 import com.google.gson.Gson;
+
 import dao.Sql2oItemsDao;
 import dao.Sql2oStoreDao;
 import exceptions.ApiException;
@@ -13,98 +15,123 @@ import java.util.Map;
 import static spark.Spark.*;
 
 public class App {
+
     public static void main(String[] args) {
+
+        Sql2oItemsDao itemDao;
         Sql2oStoreDao storeDao;
-        Sql2oItemsDao itemsDao;
         Connection conn;
         Gson gson = new Gson();
-
-        String connectString = "jdbc:h2:~/jadle.db;INIT=RUNSCRIPT from 'classpath:DB/create.sql'";
-        Sql2o sql2o = new Sql2o(connectString, "", "");
+        String connectionString = "jdbc:postgresql://localhost:5432/shopping";
+        Sql2o sql2o = new Sql2o(connectionString, "postgres", "");
 
         storeDao = new Sql2oStoreDao(sql2o);
-        itemsDao = new Sql2oItemsDao(sql2o);
+        itemDao = new Sql2oItemsDao(sql2o);
         conn = sql2o.open();
 
-        //create
-        post("/items/new", "application/json", (request, response) -> {
-            Items item = gson.fromJson(request.body(), Items.class);
-            itemsDao.add(item);
-            response.status(201);
+        //CREATE
+        post("/stores/new", "application/json", (req, res) -> {
+            Store store = gson.fromJson(req.body(), Store.class);
+            storeDao.add(store);
+            res.status(201);
+            return gson.toJson(store);
+        });
+        post("/items/new", "application/json", (req, res) -> {
+            Items item = gson.fromJson(req.body(), Items.class);
+            itemDao.add(item);
+            res.status(201);
             return gson.toJson(item);
         });
 
-        post("stores/new", "application.json", (request, response) -> {
-            Store store = gson.fromJson(request.body(), Store.class);
-            storeDao.add(store);
-            response.status(201);
-            return gson.toJson(store);
-        });
-
-        post("/stores/:storeId/item/:itemId", "application/json", (request, response) -> {
-            int storeId = Integer.parseInt(request.params("storeId"));
-            int itemId = Integer.parseInt(request.params("itemId"));
-            Store store = storeDao.findById(storeId);
-            Items item = itemsDao.findById(itemId);
-
-            if (store != null && item != null) {
-                itemsDao.addItemToStore(item, store);
-                response.status(201);
-                return gson.toJson(String.format("'%s' has been added to '%s'.", item.getName(), store.getName()));
-            } else {
-                throw new ApiException(404, String.format("Item or Store does not exist"));
-            }
-        });
-
-        //read
-        get("/store/:id/items", "application/json", (request, response) -> {
-            int storeId = Integer.parseInt(request.params("id"));
-            Store storeToFind = storeDao.findById(storeId);
-
-            if (storeToFind == null) {
-                throw new ApiException(404, String.format("No store with the id: \"%s\" exists.", request.params("id")));
-            } else if (storeDao.getAllItemsByStore(storeId).size() == 0) {
-                return "{\"message\":\"I'm sorry, but no items are listed for this store.\"}";
-            } else {
-                return gson.toJson(storeDao.getAllItemsByStore(storeId));
-            }
-        });
-
-        get("/items/:id/stores", "application/json", (request, response) -> {
-            int itemId = Integer.parseInt(request.params("id"));
-            Items itemToFind = itemsDao.findById(itemId);
-            if (itemToFind == null) {
-                throw new ApiException(404, String.format("No item with the id: \"%s\" exists", request.params("id")));
-            } else if (itemsDao.getAllStoresForItem(itemId).size() == 0) {
-                return "{\"message\":\"I'm sorry, but no stores appear to have this item.\"}";
-            } else {
-                return gson.toJson(itemsDao.getAllStoresForItem(itemId));
-            }
-        });
-
-        get("/stores", "application.json", (request, response) -> {
-            System.out.println(storeDao.getAll());
-
-            if (storeDao.getAll().size() > 0) {
+        //READ
+        get("/stores", "application/json", (req, res) -> {
+            if(storeDao.getAll().size() > 0){
                 return gson.toJson(storeDao.getAll());
-            } else {
+            }
+            else {
                 return "{\"message\":\"I'm sorry, but no stores are currently listed in the database.\"}";
             }
         });
 
-        get("/items", "application.json", (request, response) -> {
-            return gson.toJson(itemsDao.getAll());
+        get("/stores/:id", "application/json", (req, res) -> {
+            int storeId = Integer.parseInt(req.params("id"));
+            Store storeToFind = storeDao.findById(storeId);
+            if (storeToFind == null){
+                throw new ApiException(404, String.format("No stores with the id: \"%s\" exists", req.params("id")));
+            }
+            return gson.toJson(storeToFind);
+        });
+        get("/stores/:storeId/items", "application/json", (req, res) -> {
+            int storeId = Integer.parseInt(req.params("storeId"));
+            Store storeToFind = storeDao.findById(storeId);
+            if (storeToFind == null){
+                throw new ApiException(404, String.format("No store with the id: \"%s\" exists", req.params("id")));
+            }
+            else if (storeDao.getAllItemsByStore(storeId).size()==0){
+                return "{\"message\":\"I'm sorry, but no items are listed for this store.\"}";
+            }
+            else {
+                return gson.toJson(storeDao.getAllItemsByStore(storeId));
+            }
         });
 
-        //update
-        get("/stores/:id", "application.json", (request, response) -> {
-            int storeId = Integer.parseInt(request.params("id"));
-            return gson.toJson(storeDao.findById(storeId));
+        get("/stores/:storeId/items/:itemId", "application/json", (req, res) -> {
+            int storeId = Integer.parseInt(req.params("storeId"));
+            int itemId = Integer.parseInt(req.params("itemId"));
+            Store store = storeDao.findById(storeId);
+            Items item = itemDao.findById(itemId);
+
+
+            if (store != null && item != null){
+                    storeDao.getAllItemsByStore(storeId);
+                    itemDao.getAllStoresForItem(itemId);
+//                itemDao.addItemToStore(item, store);
+                res.status(201);
+                return gson.toJson(String.format("Store '%s' and Item '%s' have been associated",item.getName(), store.getName()));
+            }
+            else {
+                throw new ApiException(404, String.format("Store or Item does not exist"));
+            }
         });
 
-        //filter
-        after((request, response) -> {
-            response.type("application/json");
+        get("/items", "application/json", (req, res) -> {
+            if(itemDao.getAll().size() > 0){
+                return gson.toJson(itemDao.getAll());
+            }
+            else {
+                return "{\"message\":\"I'm sorry, but no stores are currently listed in the database.\"}";
+            }
+        });
+
+        get("/items/:id", "application/json", (req, res) -> {
+            int itemId = Integer.parseInt(req.params("id"));
+           Items itemToFind = itemDao.findById(itemId);
+            if (itemToFind == null){
+                throw new ApiException(404, String.format("No items with the id: \"%s\" exists", req.params("id")));
+            }
+            return gson.toJson(itemToFind);
+        });
+        get("/items/:id/stores", "application/json", (req, res) -> {
+            int itemId = Integer.parseInt(req.params("id"));
+            Items itemToFind = itemDao.findById(itemId);
+            if (itemToFind == null){
+                throw new ApiException(404, String.format("No items with the id: \"%s\" exists", req.params("id")));
+            }
+            else if (itemDao.getAllStoresForItem(itemId).size()==0){
+                return "{\"message\":\"I'm sorry, but no stores are listed for this item.\"}";
+            }
+            else {
+                return gson.toJson(itemDao.getAllStoresForItem(itemId));
+            }
+        });
+        get("/items/:name", "application/json", (req, res) -> {
+            String itemName = req.params("name");
+            Items itemsToFind = itemDao.findByName(itemName);
+            if (itemsToFind == null){
+                throw new ApiException(404, String.format("No items with the name: \"%s\" exists", req.params("name")));
+            }else {
+                return gson.toJson(itemName);
+            }
         });
 
         exception(ApiException.class, (exception, req, res) -> {
@@ -116,6 +143,6 @@ public class App {
             res.status(err.getStatusCode());
             res.body(gson.toJson(jsonMap));
         });
-
     }
 }
+
